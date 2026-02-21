@@ -1,0 +1,106 @@
+# stages:
+#   - deploy
+
+# deploy:
+#   stage: deploy
+#   image: alpine:latest
+#   only:
+#     - main
+
+#   before_script:
+#     - apk add --no-cache openssh git docker-cli
+#     - mkdir -p ~/.ssh
+#     - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+#     - chmod 600 ~/.ssh/id_rsa
+#     - ssh-keyscan -H $SERVER_IP >> ~/.ssh/known_hosts
+
+#   script:
+#     - |
+#       ssh $SERVER_USER@$SERVER_IP << 'EOF'
+#         cd nestjs-bash
+
+#         echo "Pulling latest code..."
+#         git pull origin main
+
+#         echo "Stopping old container..."
+#         docker stop nestjs-app || true
+#         docker rm nestjs-app || true
+
+#         echo "Building docker image..."
+#         docker build -t nestjs-app .
+
+#         echo "Running new container..."
+#         docker run -d \
+#           --name nestjs-app \
+#           -p 3000:3000 \
+#           nestjs-app
+#       EOF
+
+# stages:
+#   - deploy
+
+# deploy_production:
+#   stage: deploy
+#   only:
+#     - main
+#   before_script:
+#   - eval $(ssh-agent -s)
+#   - echo "$EC2_SSH_PRIVATE_KEY" > private_key
+#   - chmod 600 private_key
+#   - ssh-add private_key
+#   - mkdir -p ~/.ssh
+#   - chmod 700 ~/.ssh
+#   - ssh-keyscan -H 3.95.60.156 >> ~/.ssh/known_hosts
+#   script:
+#     - ssh ubuntu@3.95.60.156 "
+#         cd nestjs-bash &&
+#         git pull origin main &&
+#         npm install &&
+#         npm run build &&
+#         pm2 restart nest-api
+#       "
+
+# deploy_ssd:
+#   stage: deploy
+#   only:
+#     - main
+#   before_script:
+#     - eval $(ssh-agent -s)
+#     - echo "$EC2_SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+#     - mkdir -p ~/.ssh
+#     - chmod 700 ~/.ssh
+#     - ssh-keyscan -H 209.182.232.52 >> ~/.ssh/known_hosts
+#   script:
+#     - ssh agamdeployment@209.182.232.52 "
+#         cd // && export NVM_DIR=\$HOME/.nvm &&
+#       [ -s \$NVM_DIR/nvm.sh ] && . \$NVM_DIR/nvm.sh && cd nestjs-bash &&
+#         git pull origin main &&
+#         npm install &&
+#         npm run build &&
+#         pm2 restart nest-api
+#       "
+
+name: Deploy to SSD Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /nestjs-bash-3
+            git pull origin main
+            npm install
+            npm run build
+            pm2 restart nest-api-2
